@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A2O 知識問答小助手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f5f5f3; --panel:#ffffff; --ink:#2d3142; --muted:#5a6580;
+  --rule:rgba(45,49,66,.12); --accent:#bf4520; --accent-soft:rgba(191,69,32,.08);
+  --green:#2e7d5b; --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--paper);color:var(--ink);display:flex;overflow:hidden}
+
+/* ===== 側欄 ===== */
+aside{width:280px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--rule);display:flex;flex-direction:column;padding:28px 20px 18px}
+.brand{margin-bottom:26px}
+.brand .eyebrow{font-size:11px;letter-spacing:.22em;color:var(--muted);font-weight:500;margin-bottom:8px}
+.brand h1{font-family:'Noto Serif TC',serif;font-size:22px;font-weight:600;line-height:1.3}
+.brand h1 em{font-style:normal;color:var(--accent)}
+.brand p{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
+.kb-list{border-top:1px solid var(--rule);padding-top:16px;flex:1;overflow-y:auto}
+.kb-list h2{font-size:11px;letter-spacing:.18em;color:var(--muted);font-weight:500;margin-bottom:10px}
+.kb-item{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:6px;font-size:13px;cursor:default}
+.kb-item:hover{background:var(--accent-soft)}
+.kb-item .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.kb-item .tag{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.tag.ok{background:rgba(46,125,91,.1);color:var(--green)}
+.tag.old{background:rgba(191,69,32,.12);color:var(--accent)}
+.side-foot{border-top:1px solid var(--rule);padding-top:12px;font-size:11px;color:var(--muted);line-height:1.7}
+.model-row{margin-bottom:10px}
+.model-row label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+.model-row select{width:100%;font-family:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);color:var(--ink)}
+
+/* ===== 主聊天區 ===== */
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+.chat-head{padding:18px 32px;border-bottom:1px solid var(--rule);background:var(--paper);display:flex;align-items:baseline;gap:14px}
+.chat-head h3{font-family:'Noto Serif TC',serif;font-size:17px;font-weight:600}
+.chat-head span{font-size:12px;color:var(--muted)}
+.chat-body{flex:1;overflow-y:auto;padding:28px 32px 16px;display:flex;flex-direction:column;gap:20px}
+.msg{max-width:78%;display:flex;flex-direction:column;gap:6px}
+.msg .who{font-size:10px;letter-spacing:.16em;color:var(--muted)}
+.msg .bubble{padding:14px 18px;border-radius:var(--radius);font-size:14px;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-end}
+.msg.user .bubble{background:var(--ink);color:#f5f5f3;border-bottom-right-radius:3px}
+.msg.bot{align-self:flex-start}
+.msg.bot .bubble{background:var(--panel);border:1px solid var(--rule);border-bottom-left-radius:3px}
+.msg.bot .bubble strong{color:var(--accent)}
+.src{display:flex;flex-wrap:wrap;gap:6px}
+.src span{font-size:10.5px;color:var(--muted);border:1px solid var(--rule);border-radius:20px;padding:2px 9px;background:var(--panel)}
+.typing{display:inline-flex;gap:4px;padding:4px 2px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+/* 輸入列 */
+.chat-input{padding:16px 32px 22px;border-top:1px solid var(--rule);background:var(--paper)}
+.input-wrap{display:flex;gap:10px;background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:8px 8px 8px 18px;transition:border-color .2s}
+.input-wrap:focus-within{border-color:var(--accent)}
+.input-wrap textarea{flex:1;border:0;outline:0;resize:none;font-family:inherit;font-size:14px;line-height:1.6;max-height:140px;background:transparent;color:var(--ink);padding-top:7px}
+.send{flex-shrink:0;border:0;background:var(--ink);color:var(--paper);border-radius:9px;padding:10px 20px;font-size:13px;font-family:inherit;cursor:pointer;transition:background .2s}
+.send:hover{background:var(--accent)}
+.send:disabled{opacity:.45;cursor:not-allowed}
+.hint{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
+
+/* ===== API KEY 鎖定畫面 ===== */
+.gate{position:fixed;inset:0;background:rgba(45,49,66,.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+.gate.hidden{display:none}
+.gate-card{background:var(--panel);border-radius:14px;padding:38px 36px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+.gate-card .lock{width:44px;height:44px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.gate-card h2{font-family:'Noto Serif TC',serif;font-size:21px;font-weight:600;margin-bottom:8px}
+.gate-card p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px}
+.gate-card p a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent)}
+.gate-card > input{width:100%;font-family:inherit;font-size:13px;padding:11px 13px;border:1px solid var(--rule);border-radius:8px;outline:0;margin-bottom:12px;background:var(--paper);color:var(--ink)}
+.gate-card > input:focus{border-color:var(--accent)}
+.gate-err{font-size:12px;color:var(--accent);min-height:18px;margin-bottom:6px;line-height:1.5}
+.gate-remember{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:18px;cursor:pointer}
+.gate-remember input{accent-color:var(--accent)}
+.gate-btn{width:100%;border:0;background:var(--ink);color:var(--paper);font-family:inherit;font-size:14px;padding:12px;border-radius:8px;cursor:pointer;transition:background .2s}
+.gate-btn:hover{background:var(--accent)}
+.gate-btn:disabled{opacity:.5;cursor:wait}
+.forget{background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;display:none;margin-top:12px;width:100%}
+
+/* 手機 */
+@media(max-width:860px){
+  aside{display:none}
+  .chat-head,.chat-body,.chat-input{padding-left:18px;padding-right:18px}
+  .msg{max-width:92%}
+}
+/* 免責聲明列 */
+.notice{margin:0 32px 10px;padding:10px 14px;border:1px dashed var(--rule);border-radius:8px;font-size:11.5px;color:var(--muted);line-height:1.7}
+.notice strong{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="eyebrow">A2O · KNOWLEDGE BASE</div>
+    <h1>A2O <em>知識問答</em>小助手</h1>
+    <p>回答全部取自下方六份內部文件；文件沒寫的，它會老實說不知道。</p>
+  </div>
+  <div class="kb-list">
+    <h2>知識庫（6 份）</h2>
+    <div id="kbList"></div>
+  </div>
+  <div class="side-foot">
+    <div class="model-row">
+      <label>模型</label>
+      <select id="modelSel">
+        <option value="openai/gpt-oss-120b" selected>gpt-oss-120b（預設）</option>
+        <option value="openai/gpt-oss-20b">gpt-oss-20b（較快）</option>
+        <option value="qwen/qwen3.8-27b">qwen3.8-27b（試用版）</option>
+      </select>
+    </div>
+    <button class="forget" id="forgetBtn">移除本機已存的 API Key</button>
+    所有公司、人名、資料皆為虛構假資料，與任何真實公司無關。
+  </div>
+</aside>
+
+<main>
+  <div class="chat-head">
+    <h3>知識問答</h3>
+    <span>新人須知 · 報價 · 退換貨 · 產品規格 · 客服 FAQ</span>
+  </div>
+  <div class="notice">
+    <strong>練習提示：</strong>本須知 2024 版已停用（以 2026 版為準）。可以試問：「業務最多能打幾折？」「TC-40 收貨 10 天能退嗎？」「SC-800 有 E-Mark 嗎？」——看它會不會用錯版本或只靠單一紀錄回答。
+  </div>
+  <div class="chat-body" id="chatBody"></div>
+  <div class="chat-input">
+    <div class="input-wrap">
+      <textarea id="input" rows="1" placeholder="輸入問題，例如：報價折扣超過權限要誰核准？"></textarea>
+      <button class="send" id="sendBtn">送出</button>
+    </div>
+    <div class="hint">Enter 送出・Shift+Enter 換行</div>
+  </div>
+</main>
+
+<!-- API KEY 鎖定畫面 -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="lock"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#bf4520" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+    <h2>請先輸入 Groq API Key</h2>
+    <p>本服務以 Groq 模型回答，需要你自己的 API Key。<br>Key 只存在<b>你的瀏覽器</b>，由瀏覽器直接呼叫 Groq，不經過其他伺服器。<br>若還沒有 Key：<a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> 免費申請。</p>
+    <input type="password" id="keyInput" placeholder="gsk_..." autocomplete="off">
+    <div class="gate-err" id="gateErr"></div>
+    <label class="gate-remember"><input type="checkbox" id="remember"> 記住此 Key（存在本機瀏覽器）</label>
+    <button class="gate-btn" id="gateBtn">驗證並開始</button>
+    <button class="forget" id="forgetGateBtn">忘記此 Key 並清除</button>
+  </div>
+</div>
+
+<script>
+/* ================= 知識庫 ================= */
+const KB = [
+  {id:"new2026", name:"新人須知 2026 版", status:"現行", tag:"現行", color:"var(--green)",
+   sections:[
+    {t:"上班與請假", x:"上班時間 08:30–17:30，午休 12:00–13:00。請假在人資系統線上申請，前一天下班前送出；臨時病假當天 09:00 前打給主管。"},
+    {t:"客戶詢問怎麼接", x:"一般詢問：1 個工作天內回覆。客訴：4 個工作小時內先回第一封，說明已收到、誰負責、何時再回。所有詢問都要登記在案件庫，寫清楚客戶、產品、狀態。"},
+    {t:"報價權限", x:"業務可以給到牌價 95 折。低於 95 折，或單筆金額超過新台幣 50 萬元，要業務課長核准。海外報價一律經業務課長。詳細步驟看「報價流程」。"},
+    {t:"退換貨", x:"收貨 14 天內可申請，詳細規定看「退換貨辦法」。"},
+    {t:"對外承諾", x:"交期、認證、保固只能照公司文件講，文件沒寫的不要自己答應。免費到府、賠償、折讓、「保證」這類承諾，一律要主管核准，不可以先答應客戶。產品對外說法以「產品母稿」為準。"},
+    {t:"客訴回覆三段式", x:"1. 先接住情緒：謝謝告知、造成困擾很抱歉。2. 再說明處理：需要客戶提供什麼、我們會怎麼做。3. 最後留窗口：誰負責、什麼時候再回。"},
+    {t:"找誰", x:"規格、認證、品質：品保課 王課長。價格、交期、報價核准：業務課 周課長。退換貨、出貨：物流課 江組長。"}
+   ]},
+  {id:"new2024", name:"新人須知 2024 版", status:"已停用", tag:"已停用", color:"var(--accent)",
+   sections:[
+    {t:"【已停用文件】2024 版（勿引用為現行規定）", x:"此文件已由 2026 版取代，不可作為現行規定的依據。其內容與 2026 版差異：2024 版業務報價權限為牌價 9 折（2026 改為 95 折、即更嚴）；單筆超過新台幣 100 萬元需課長核准（2026 改為 50 萬元）；退換貨 7 天內（2026 改為 14 天）；請假填紙本假單（2026 改為人資系統線上申請）；客訴 24 小時內回覆（2026 改為 4 個工作小時內先回第一封）。若被問到現行規定，一律以 2026 版與「報價流程」「退換貨辦法」為準。"}
+   ]},
+  {id:"quote", name:"報價流程", status:"2026-03 版", tag:"現行", color:"var(--green)",
+   sections:[
+    {t:"步驟", x:"1. 確認客戶要的型號、數量、交貨地點、希望時間。2. 查牌價表，算出報價。3. 折扣在權限內 → 業務直接出報價單。4. 折扣超過權限 → 送業務課長核准後再出。5. 報價單寄出後，在案件庫把狀態改成「已回覆」。"},
+    {t:"折扣權限", x:"業務：牌價 95 折以內。低於 95 折，或單筆超過新台幣 50 萬元：業務課長核准。海外報價：一律業務課長核准；涉及認證的，同時給品保課確認。"},
+    {t:"報價單", x:"有效期 30 天。交期寫「訂單確認後由業務回覆」，不寫死日期。"}
+   ]},
+  {id:"return", name:"退換貨辦法", status:"2026-03 版", tag:"現行", color:"var(--green)",
+   sections:[
+    {t:"期限", x:"收貨 14 天內提出申請。"},
+    {t:"可以退換的情況", x:"未拆封、未安裝：可退貨，全額退款。產品瑕疵（例如端子鬆脫、線材破皮）：換新品，運費公司負擔。少零件：補寄缺少的零件，不用寄回整組。"},
+    {t:"不能退換的情況", x:"已安裝、非產品瑕疵（例如買錯規格）。人為損壞、未依說明書安裝。"},
+    {t:"包裝破損", x:"簽收時發現外箱破損，請當場拍照，3 天內通報業務或客服。超過 3 天才通報，要由物流課判斷。"},
+    {t:"誰能答應客戶", x:"「可以退換的情況」節以內的處理，客服可以直接答應。以外的處理（例如免費到府、賠償），要主管核准。"}
+   ]},
+  {id:"product", name:"產品母稿（WH-12 核准版）", status:"v3｜2026-09-01", tag:"對外標準", color:"var(--green)",
+   sections:[
+    {t:"規格【可對外】", x:"WH-12：行車記錄器免拆線電源線組，從保險絲盒取電，熄火後可持續供電做停車監控。輸入：DC 12V／24V 車系通用（9–32V）。輸出：DC 5V 2.5A，附 USB-C 與 Mini USB 兩種接頭。線長：3.5 公尺，PVC 外被。低電壓保護：11.6V／11.8V／12.0V 三段切換（24V 車系自動加倍）。停車監控：熄火後 6／12／24 小時自動斷電，三段切換。保險絲取電座：迷你、標準、低矮迷你三種各 1 個。工作溫度：−30～85°C。"},
+    {t:"認證與測試【可對外】", x:"RoHS（第三方檢測報告，2026 年 4 月）。REACH SVHC 符合聲明。線材彎折壽命 50 萬次（第三方實驗室報告，2026 年 5 月）。端子與取電座鹽霧測試 96 小時通過（第三方實驗室報告，2026 年 5 月）。"},
+    {t:"目前沒有的認證【可對外，但只能說「目前沒有」】", x:"歐盟 E-Mark（ECE R10 電磁相容）：目前沒有。IATF 16949（車廠品質系統驗證）：目前沒有。客戶問到這兩項，只能說「目前沒有」，不可以承諾取得時間。"},
+    {t:"說明【不可對外】", x:"這文件的內部註記、成本、未核准的陳述屬內部資訊；對外只能引用標示【可對外】的內容，這份沒寫的數字不要自己補。"}
+   ]},
+  {id:"faq", name:"客服 Q&A 精選", status:"2026-08~10", tag:"FAQ", color:"var(--green)",
+   sections:[
+    {t:"SC-800 有 E-Mark 嗎？", x:"目前沒有 E-Mark，可以評估送測，是否送測由產品經理決定後再回覆。回答客戶時只能說「目前沒有」，不可承諾時間（2024-08 曾有客服說三個月可拿到，屬錯誤承諾）。"},
+    {t:"WH-12 保固幾年？", x:"降壓模組 5 年，線材與接頭 3 年，保險絲取電座 1 年，請保留購買證明。整組保固：保固 5 年，整組都有包含，取電座也算。"},
+    {t:"保險絲取電座尺寸", x:"WH-12 附迷你、標準、低矮迷你三種；不確定的話請客戶拍保險絲盒照片確認。保險絲取電座可以單獨購買，轉給附近的經銷商。"},
+    {t:"接線方式", x:"紅線接常電、黃線接 ACC、黑線接車身搭鐵。第 4 步是先接搭鐵線再插取電座。"},
+    {t:"記錄器熄火後一直重開／隔天車子發不動", x:"多半是紅線、黃線接反，或低電壓保護設定不當；請先確認紅線接常電、黃線接 ACC，再把低電壓保護切到 11.6V（停車監控議題可調到 12.0V、監控時間 6 小時）。"},
+    {t:"倒車雷達誤叫", x:"多半是探頭表面有泥沙或水珠，用濕布把保險桿上的探頭擦乾淨；如果擦過還是一樣，請拍接頭照片。"},
+    {t:"TC-40 注意事項", x:"端子鬆脫多半是接頭沒有插到底，重新插到「喀」一聲；適用 0.5 到 1.25 平方公釐的電線；端子可單買，跟業務叫貨。數量大（如 5,000 個）要先問業務確認交期。"},
+    {t:"外箱破損／少零件", x:"外箱破損：請先拍外箱和產品照片，3 天內通報，物流課安排換貨（運費公司負擔）。少零件：補寄缺少的零件，不用寄回整組。"},
+    {t:"展示間與門市", x:"展示間平日 09:00–17:00 開放，先約時間。門市在彰化。發票月底一起寄。報價單可以改抬頭，提供正確公司抬頭和統編重新開。"}
+   ]}
+];
+
+/* ================= 檢索（字元 bigram 相似度）================= */
+function bigrams(s){const r=new Set();s=s.toLowerCase();for(let i=0;i<s.length-1;i++){const a=s[i],b=s[i+1];if(/\S/.test(a)&&/\S/.test(b))r.add(a+b)}return r}
+function unigrams(s){const r=new Set();for(const c of s.toLowerCase()){if(/[a-z0-9]|[\u4e00-\u9fff]/.test(c))r.add(c)}return r}
+function retrieve(query,n=7){
+  const q=bigrams(query),qu=unigrams(query); if(!qu.size) return KB.flatMap(d=>d.sections.slice(0,1).map(sec=>({d,sec})));
+  const scored=[];
+  KB.forEach(d=>d.sections.forEach(sec=>{
+    const t=bigrams(sec.t+" "+sec.x),tu=unigrams(sec.t+" "+sec.x);
+    let s=0;q.forEach(b=>{if(t.has(b))s++});qu.forEach(u=>{if(tu.has(u))s+=0.3});
+    scored.push({s,d,sec});
+  }));
+  return scored.sort((a,b)=>b.s-a.s).slice(0,n).filter(x=>x.s>1.5);
+}
+
+/* ================= 介面 ================= */
+const chatBody=document.getElementById("chatBody"),
+      input=document.getElementById("input"), sendBtn=document.getElementById("sendBtn"),
+      modelSel=document.getElementById("modelSel"),
+      gate=document.getElementById("gate"), keyInput=document.getElementById("keyInput"),
+      gateErr=document.getElementById("gateErr"), gateBtn=document.getElementById("gateBtn"),
+      remember=document.getElementById("remember"),
+      forgetBtn=document.getElementById("forgetBtn"), forgetGateBtn=document.getElementById("forgetGateBtn");
+
+let apiKey=localStorage.getItem("a2o_groq_key")||"";
+sendBtn.disabled=!apiKey;
+
+// 知識庫清單
+document.getElementById("kbList").innerHTML=KB.map(d=>
+  `<div class="kb-item"><span class="dot" style="background:${d.color}"></span>${d.name}<span class="tag ${d.tag==="已停用"?"old":"ok"}">${d.tag}</span></div>`).join("");
+
+function canStart(){return apiKey.length>10}
+function openGate(){ // 無已存 key → 彈出
+  if(canStart()){ setForgetVisible(); gate.classList.add("hidden"); }
+  else { gate.classList.remove("hidden"); setForgetVisible(); setTimeout(()=>keyInput.focus(),50); }
+}
+function setForgetVisible(){
+  forgetBtn.style.display=forgetGateBtn.style.display=canStart()?"block":"none";
+}
+openGate();
+
+forgetBtn.onclick=forgetGateBtn.onclick=()=>{
+  localStorage.removeItem("a2o_groq_key"); apiKey=""; keyInput.value="";
+  sendBtn.disabled=true; openGate();
+};
+
+gateBtn.onclick=async()=>{
+  const k=keyInput.value.trim();
+  gateErr.textContent="";
+  if(k.length<10){gateErr.textContent="Key 太短了，請確認（通常以 gsk_ 開頭）";return}
+  gateBtn.disabled=true; gateBtn.textContent="驗證中…";
+  try{
+    const r=await fetch("https://api.groq.com/openai/v1/models",{headers:{Authorization:"Bearer "+k}});
+    if(r.ok){
+      apiKey=k; if(remember.checked) localStorage.setItem("a2o_groq_key",k);
+      sendBtn.disabled=false; setForgetVisible(); gate.classList.add("hidden"); welcome();
+    } else if(r.status===401){ gateErr.textContent="驗證失敗：Key 無效或已過期，請重新輸入。"; }
+    else { gateErr.textContent="驗證失敗（HTTP "+r.status+"），稍後再試。"; }
+  }catch(e){ gateErr.textContent="無法連上 Groq，請檢查網路。"; }
+  gateBtn.disabled=false; gateBtn.textContent="驗證並開始";
+};
+keyInput.addEventListener("keydown",e=>{if(e.key==="Enter")gateBtn.click()});
+
+function welcome(){
+  addMsg("bot","哈囉！我是 A2O 的知識問答小助手。\n政策的問題我從「新人須知、報價流程、退換貨辦法」回答，產品規格以「產品母稿」為準，常見客戶問題有整理好的 FAQ。\n文件沒寫的，我會跟你說我不知道。請開始提問！");
+}
+
+function addMsg(role,text,srcs){
+  const div=document.createElement("div"); div.className="msg "+(role==="user"?"user":"bot");
+  let html=`<div class="who">${role==="user"?"你":"A2O 小助手"}</div><div class="bubble"></div>`;
+  div.innerHTML=html;
+  div.querySelector(".bubble").textContent=text;
+  if(srcs&&srcs.length){
+    const s=document.createElement("div"); s.className="src";
+    s.innerHTML=srcs.map(x=>`<span>📄 ${x}</span>`).join(""); div.appendChild(s);
+  }
+  chatBody.appendChild(div); chatBody.scrollTop=chatBody.scrollHeight;
+  return div;
+}
+const REFUSAL="很抱歉，我在公司的知識庫文件裡找不到可以回答這個問題的內容。建議你先登記到案件庫，或找對應窗口：規格／認證／品質找品保課王課長、價格／交期／報價核准找業務課周課長、退換貨／出貨找物流課江組長。";
+
+async function ask(){
+  const q=input.value.trim(); if(!q||sendBtn.disabled) return;
+  input.value=""; input.style.height="auto";
+  addMsg("user",q);
+  const t=addMsg("bot","",null); t.querySelector(".bubble").innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
+
+  const hits=retrieve(q);
+  let context;
+  if(hits.length){
+    context=hits.map(h=>`【${h.d.name}｜${h.sec.t}】\n${h.sec.x}`).join("\n\n");
+  } else {
+    context="(檢索不到相關段落)";
+  }
+  const hitNames=[...new Set(hits.map(h=>h.d.name))];
+
+  const sys=`你是「A2O（虛構）精密零組件公司」的內部知識問答助手，回答對象是公司員工。
+規則：
+1. 只依據下方「 KNOWLEDGE 」裡的內容回答；裡面沒有的，就回覆這句：${REFUSAL}
+2. 「新人須知 2024 版」是已停用文件，絕不可引用為現行規定；現行規定以 2026 版與報價流程、退換貨辦法為準。若使用者引用的是 2024 版內容（例如 9 折、7 天、100 萬元），要提醒他以現行版本為準。
+3. 產品規格、認證問題以「產品母稿」為準；E-Mark、IATF 16949 目前沒有，只能說「目前沒有」，不可承諾取得時間。
+4. 免費到府、賠償、折讓、保證類承諾要主管核准，不可擅自承諾。
+5. 用台灣繁體中文回答，簡潔、口氣友善；引用規定時順帶說是依據哪份文件。用「•」列點即可。
+
+KNOWLEDGE：
+${context}`;
+
+  try{
+    const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+      method:"POST",
+      headers:{"Authorization":`Bearer ${apiKey}`,"Content-Type":"application/json"},
+      body:JSON.stringify({model:modelSel.value,temperature:0.2,max_tokens:1200,
+        messages:[{role:"system",content:sys},{role:"user",content:q}]})
+    });
+    const j=await r.json();
+    if(j.error){ t.querySelector(".bubble").textContent="發生錯誤："+(j.error.message||JSON.stringify(j.error)); }
+    else {
+      const ans=j.choices?.[0]?.message?.content?.trim()||"（模型沒有回覆內容）";
+      t.querySelector(".bubble").textContent=ans;
+      if(hitNames.length){
+        const s=document.createElement("div"); s.className="src";
+        s.innerHTML=hitNames.map(n=>`<span>📄 ${n}</span>`).join(""); t.appendChild(s);
+      }
+    }
+  }catch(e){
+    t.querySelector(".bubble").textContent="連線失敗："+e.message+"（請確認網路或 Key 是否有效）";
+  }
+  chatBody.scrollTop=chatBody.scrollHeight;
+}
+
+sendBtn.onclick=ask;
+input.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask();} });
+input.addEventListener("input",()=>{input.style.height="auto";input.style.height=Math.min(input.scrollHeight,140)+"px"});
+</script>
+</body>
+</html>
